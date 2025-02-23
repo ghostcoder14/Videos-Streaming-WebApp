@@ -17,5 +17,6 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/v1/user", userRouter);
+console.log(app._router.stack.map(layer => layer.route?.path).filter(Boolean));
 
 export default app;

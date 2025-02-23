@@ -4,24 +4,23 @@ import {User} from '../models/user.model.js';
 import {uploadOnCloudinary} from '../utils/cloudinary.js'
 import { ApiResponse } from "../utils/apiREsponse.js";
 
-const generateaccessandrefreshyoken =  async(userId) => {
+const generateAccessAndRefreshToken =  async(userId) => {
     try {
-        const user = await User.findById(userId)
-      const accesToken =   user.generateAccessToken()
+      const user = await User.findById(userId)
+      const accessToken =   user.generateAccessToken()
       const refreshToken =   user.generateRefreshToken()
       user.refreshToken = refreshToken
       await user.save({validateBeforeSave: false})
-      return {accesToken, refreshToken}
+      return {accessToken, refreshToken}
     } catch (error) {
         throw new ApiErrors(500, "Something went wrong while generating the token")
     }
 }
 
-
 const registerUser = asyncHandler(async (req , res) => {
      const {fullname , username , email , password} = req.body
     if (
-        [fullname , username , email , password].some((field)=> field?.trim() == " ")
+        [fullname , username , email , password].some((field)=> field?.trim() == "")
     ) {
         throw new ApiErrors(400, "All field are required")
     }
@@ -85,13 +84,15 @@ const loginUser = asyncHandler(async (req , res) => {
     //password check
     //access and refresh token  generation 
     //send them in cookies 
-    const {email , username} = req.body
-    if(!username || !email){
+    console.log("🚀Login route hit in function!"); 
+    const {email , username , password} = req.body
+    if(!(username || email)){
         throw new ApiErrors(400 , "Username and email is required");
     }
    const user =  await User.findOne({
         $or:[{username}, {email}]
     })
+    console.log("Find User:" , user)
     if(!user){
         throw new ApiErrors(404 , " Username not valid")
     }
@@ -102,15 +103,14 @@ if(!ispasswordValid){
     throw new ApiErrors(401, "Invalid uesr Credentials") 
 }
 
-const {accesToken , refreshToken} = generateaccessandrefreshyoken(user._id)
+const {accesToken , refreshToken} = await generateAccessAndRefreshToken(user._id)
 
- const loggedinUser  = await User.findById(user._id).select("-password , -refreshToken")
+ const loggedinUser  = await User.findById(user._id).select("-password  -refreshToken")
 
  const options = {
     httpOnly: true ,
     secure: true ,
  }
-
  return res
  .status(200)
  .cookie("accessToken" , accesToken , options)
@@ -129,7 +129,8 @@ const {accesToken , refreshToken} = generateaccessandrefreshyoken(user._id)
 
 
 const logOutUser = asyncHandler(async(req , res) => {
-   User.findByIdAndUpdate( req.user._id,{
+    console.log("User Logout Route is called")
+  await User.findByIdAndUpdate( req.user._id,{
     $set:{
         refreshToken: undefined
     }
@@ -144,13 +145,11 @@ const options = {
  }
  return res
  .status(200)
- .clearcookie("accessToken", options)
- .clearcookie("refreshToken", options)
- .josn(new ApiResponse(200, {} , "User Logged Out"))
+ .clearCookie("accessToken", options)
+ .clearCookie("refreshToken", options)
+ .json(new ApiResponse(200, {} , "User Logged Out"))
 })
     
-
-
 
 
 export {registerUser,
