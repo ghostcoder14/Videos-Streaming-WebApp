@@ -163,7 +163,7 @@ try {
         process.env.REFRESH_TOKEN_SECRET
       )
     
-      const user = User.findById(decodedToken?._id)
+      const user = await User.findById(decodedToken?._id)
       if(!user){
         throw new ApiErrors(401, "Invalid Refresh Token");
       }
@@ -196,10 +196,43 @@ try {
 
 })
 
+const changeCurrentUserPassword = asyncHandler(async(req,res) =>{
+    const {oldPassword, newPassword} =  req.body ;
 
+    const user = await User.findById(req.user?._id)
+    if (!user) {
+        throw new ApiErrors(404, "User not found");
+    }
+    
+    const isPasswordCorrect = await  user.isPasswordCorrect(oldPassword);
+
+    if(!isPasswordCorrect){
+        throw new ApiErrors(400, "Invalid old Password")
+    }
+      user.password = newPassword;
+      await user.save({validateBeforeSave: false})
+
+      return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Password Changed"))
+
+}) 
+
+const currentUser = asyncHandler((req, res) => {
+    return res 
+    .status(200)
+    .json(200, req.user, "Current user Fetched Successfully")
+
+})
+
+const upadateAccountDetails = asyncHandler(async(req, res) => {
+    
+})
 
 export {registerUser,
     loginUser,
     logOutUser,
-    genrefreshToken
+    genrefreshToken,
+    changeCurrentUserPassword,
+    currentUser
 }
