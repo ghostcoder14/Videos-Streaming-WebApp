@@ -3,6 +3,7 @@ import { ApiErrors } from "../utils/ApiErrors.js";
 import {User} from '../models/user.model.js';
 import {uploadOnCloudinary} from '../utils/cloudinary.js'
 import { ApiResponse } from "../utils/apiREsponse.js";
+import jwt from 'jsonwebtoken'
 
 const generateAccessAndRefreshToken =  async(userId) => {
     try {
@@ -11,7 +12,7 @@ const generateAccessAndRefreshToken =  async(userId) => {
       const refreshToken =   user.generateRefreshToken()
       user.refreshToken = refreshToken
       await user.save({validateBeforeSave: false})
-      return {accessToken, refreshToken}
+      return {accessToken, refres1098525hToken}
     } catch (error) {
         throw new ApiErrors(500, "Something went wrong while generating the token")
     }
@@ -150,9 +151,55 @@ const options = {
  .json(new ApiResponse(200, {} , "User Logged Out"))
 })
     
+const genrefreshToken = asyncHandler(async(req, res) =>{
+  const inComingTefreshToken =   req.cookies.refreshToken || req.body.refreshToken
+
+  if(!inComingTefreshToken){
+    throw new ApiErrors(401, "Unauhtoried");
+  }
+try {
+    const decodedToken =  jwt.verify(
+        inComingTefreshToken,
+        process.env.REFRESH_TOKEN_SECRET
+      )
+    
+      const user = User.findById(decodedToken?._id)
+      if(!user){
+        throw new ApiErrors(401, "Invalid Refresh Token");
+      }
+    
+      if(inComingTefreshToken !== user?.refreshToken){
+        throw new ApiErrors(401, "Refresh Token is Expired")
+      }
+    
+      const options = {
+        httpOnly: true,
+        secure: true
+      }
+    
+      const {accessToken, newRefreshToken}=  await generateAccessAndRefreshToken(user._id)
+    
+      return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+            200,
+            {accessToken,refreshToken: newRefreshToken},
+            "Accessed token refresh Successfully"
+        )
+      )
+} catch (error) {
+    throw new ApiErrors(401, error?.message || "Ivaldid Refresh Token main")
+}
+
+})
+
 
 
 export {registerUser,
     loginUser,
-    logOutUser
+    logOutUser,
+    genrefreshToken
 }
